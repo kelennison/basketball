@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
+# Disable the PyplotGlobalUseWarning
+st.set_option('deprecation.showPyplotGlobalUse', False)
+
 st.title('NBA Player Stats Explorer')
 
 st.markdown("""
@@ -14,18 +17,19 @@ This app performs simple webscraping of NBA player stats data!
 """)
 
 st.sidebar.header('User Input Features')
-selected_year = st.sidebar.selectbox('Year', list(reversed(range(1950,2020))))
+selected_year = st.sidebar.selectbox('Year', list(reversed(range(1950, 2020))))
 
 # Web scraping of NBA player stats
-@st.cache
+@st.cache_data
 def load_data(year):
     url = "https://www.basketball-reference.com/leagues/NBA_" + str(year) + "_per_game.html"
-    html = pd.read_html(url, header = 0)
+    html = pd.read_html(url, header=0)
     df = html[0]
-    raw = df.drop(df[df.Age == 'Age'].index) # Deletes repeating headers in content
+    raw = df.drop(df[df.Age == 'Age'].index)  # Deletes repeating headers in content
     raw = raw.fillna(0)
     playerstats = raw.drop(['Rk'], axis=1)
     return playerstats
+
 playerstats = load_data(selected_year)
 
 # Sidebar - Team selection
@@ -33,7 +37,7 @@ sorted_unique_team = sorted(playerstats.Tm.unique())
 selected_team = st.sidebar.multiselect('Team', sorted_unique_team, sorted_unique_team)
 
 # Sidebar - Position selection
-unique_pos = ['C','PF','SF','PG','SG']
+unique_pos = ['C', 'PF', 'SF', 'PG', 'SG']
 selected_pos = st.sidebar.multiselect('Position', unique_pos, unique_pos)
 
 # Filtering data
@@ -56,13 +60,21 @@ st.markdown(filedownload(df_selected_team), unsafe_allow_html=True)
 # Heatmap
 if st.button('Intercorrelation Heatmap'):
     st.header('Intercorrelation Matrix Heatmap')
-    df_selected_team.to_csv('output.csv',index=False)
+    df_selected_team.to_csv('output.csv', index=False)
     df = pd.read_csv('output.csv')
 
-    corr = df.corr()
+    # Convert non-numeric values to NaN
+    df_numeric = df.apply(pd.to_numeric, errors='coerce')
+
+    # Calculate correlation on the numeric DataFrame
+    corr = df_numeric.corr()
+
+    # Create a mask for the upper triangle
     mask = np.zeros_like(corr)
     mask[np.triu_indices_from(mask)] = True
+
+    # Plot heatmap
     with sns.axes_style("white"):
-        f, ax = plt.subplots(figsize=(7, 5))
+        fig, ax = plt.subplots(figsize=(7, 5))
         ax = sns.heatmap(corr, mask=mask, vmax=1, square=True)
-    st.pyplot()
+    st.pyplot(fig)
